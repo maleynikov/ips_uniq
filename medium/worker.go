@@ -1,9 +1,5 @@
 package medium
 
-import (
-	"bytes"
-)
-
 var worker = func(ipsBatch <-chan []IP) <-chan []IP {
 	out := make(chan []IP)
 
@@ -27,7 +23,7 @@ var worker = func(ipsBatch <-chan []IP) <-chan []IP {
 
 func containsIP(ips []IP, ip IP) bool {
 	for _, v := range ips {
-		if bytes.Compare(v, ip) == 0 {
+		if v == ip {
 			return true
 		}
 	}

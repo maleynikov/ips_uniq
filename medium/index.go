@@ -3,8 +3,8 @@ package medium
 import (
 	"bufio"
 	"context"
-	"net"
 	"os"
+	"sync"
 )
 
 // according to the article
@@ -14,25 +14,58 @@ import (
 // data -> reader -> workers -> combiner -> result
 //
 
-const BatchSize1K = 1000
+type IP string
+type BatchSize int
 
-type IP net.IP
+const (
+	Batch1K   BatchSize = 1000
+	Batch10K  BatchSize = 10_000
+	Batch100K BatchSize = 100_000
+	Batch1M   BatchSize = 1_000_000
+)
 
 func stringToIP(s string) IP {
-	return IP(net.ParseIP(s))
+	return IP(s)
+	// return IP(net.ParseIP(s))
 }
 
-func Uniq(filepath string) (int, error) {
+type ips struct {
+	sync.Mutex
+	data map[IP]int
+}
+
+func (i *ips) add(ip IP) {
+	i.Lock()
+	defer i.Unlock()
+	i.data[ip]++
+}
+
+func (i *ips) cnt() int {
+	i.Lock()
+	defer i.Unlock()
+	return len(i.data)
+}
+
+func newIPS() *ips {
+	return &ips{data: make(map[IP]int, 0)}
+}
+
+type Options struct {
+	NumWorker int
+	BatchSize BatchSize
+}
+
+func Uniq(filepath string, opt Options) (int, error) {
 	f, err := os.Open(filepath)
 	if err != nil {
 		return 0, err
 	}
 	defer f.Close()
 
-	return process(f, 10, BatchSize1K), nil
+	return process(f, opt.NumWorker, opt.BatchSize), nil
 }
 
-func process(f *os.File, numWorkers int, batchSize int) int {
+func process(f *os.File, numWorkers int, batchSize BatchSize) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -46,14 +79,19 @@ func process(f *os.File, numWorkers int, batchSize int) int {
 	}
 
 	// combine the results
-	var ipsUniq = make([]IP, 0)
+	var ipsUniq = newIPS()
+	var wg sync.WaitGroup
 
 	for ips := range combiner(ctx, workers...) {
+		wg.Add(len(ips))
 		for _, ip := range ips {
-			if !containsIP(ipsUniq, ip) {
-				ipsUniq = append(ipsUniq, ip)
-			}
+			go func(ip IP) {
+				defer wg.Done()
+				ipsUniq.add(ip)
+			}(ip)
 		}
 	}
-	return len(ipsUniq)
+	wg.Wait()
+
+	return ipsUniq.cnt()
 }

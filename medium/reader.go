@@ -15,7 +15,7 @@ func convRowsToIPs(rows []string) []IP {
 
 var rowsBatch = make([]string, 0)
 
-var reader = func(ctx context.Context, sc *bufio.Scanner, batchSize int) <-chan []IP {
+var reader = func(ctx context.Context, sc *bufio.Scanner, bs BatchSize) <-chan []IP {
 	out := make(chan []IP)
 
 	go func() {
@@ -26,7 +26,7 @@ var reader = func(ctx context.Context, sc *bufio.Scanner, batchSize int) <-chan 
 				return
 			default:
 				rowsBatch = append(rowsBatch, sc.Text())
-				if len(rowsBatch) == batchSize {
+				if len(rowsBatch) == int(bs) {
 					out <- convRowsToIPs(rowsBatch)
 					rowsBatch = []string{}
 				}
