@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
-	"ips_uniq/ips"
+	"ips_uniq/medium"
+	"net"
 	"os"
 )
+
+type IP net.IP
 
 func main() {
 	if len(os.Args) < 2 {
@@ -12,7 +15,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var count, err = ips.Uniq(os.Args[1])
+	var count, err = medium.Uniq(os.Args[1])
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
